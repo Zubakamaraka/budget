@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Домашняя бухгалтерия</title>
+<meta name="theme-color" content="#1F5F46">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+:root{
+  --scale:1;
+  --bg:#EEF2E9; --card:#FDFDF6; --ink:#1C2419; --muted:#5C6653;
+  --accent:#1F5F46; --accent-ink:#FFFFFF; --accent-soft:#DDEAD9;
+  --line:#C9D2C0; --focus:#1A6ED8; --danger:#A83226; --ok:#25703F;
+  --exp:#B0512F; --inc:#2E7D5B;
+  --radius:14px;
+}
+[data-theme="dark"]{
+  --bg:#131711; --card:#1E241C; --ink:#EFF3E8; --muted:#ADB8A0;
+  --accent:#7FC9A4; --accent-ink:#0E2A1E; --accent-soft:#26382D;
+  --line:#3D4737; --focus:#7FB4FF; --danger:#FF9078; --ok:#8FD694;
+  --exp:#E58A66; --inc:#7FC9A4;
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html{font-size:calc(17px * var(--scale));}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  line-height:1.5; min-height:100vh;
+}
+button, input, textarea, select{font:inherit; color:inherit;}
+:focus-visible{outline:3px solid var(--focus); outline-offset:2px; border-radius:6px;}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif; line-height:1.25; letter-spacing:.01em;}
+.num{font-variant-numeric:tabular-nums;}
+
+/* ---------- Шапка ---------- */
+header{
+  position:sticky; top:0; z-index:20; background:var(--bg);
+  border-bottom:2px solid var(--line);
+  padding:.6rem .8rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+}
+.brand{display:flex; align-items:center; gap:.5rem; margin-right:auto; background:none; border:none; cursor:pointer; padding:.2rem .3rem;}
+.brand .logo{font-size:1.5rem;}
+.brand .t{font-family:Georgia,serif; font-size:1.12rem; font-weight:700;}
+.hbtn{
+  min-width:2.9rem; min-height:2.9rem; padding:.3rem .7rem;
+  border:2px solid var(--ink); border-radius:12px; background:var(--card);
+  font-weight:700; cursor:pointer; font-size:1.05rem;
+}
+.hbtn:active{transform:translateY(1px);}
+.scale-group{display:flex; gap:.35rem; align-items:center;}
+.scale-group .lbl{font-size:.8rem; color:var(--muted); font-weight:700;}
+.netdot{display:inline-flex; align-items:center; gap:.3rem; font-size:.78rem; font-weight:700; padding:.2rem .5rem; border-radius:999px; border:1.5px solid var(--line); white-space:nowrap;}
+.netdot .d{width:.6rem; height:.6rem; border-radius:50%;}
+.netdot.on .d{background:var(--ok);}
+.netdot.off .d{background:var(--muted);}
+.netdot.on{color:var(--ok);}
+.netdot.off{color:var(--muted);}
+
+main{max-width:46rem; margin:0 auto; padding:1rem .9rem 9.5rem;}
+
+/* ---------- Переключение месяца ---------- */
+.mnav{display:flex; align-items:center; gap:.6rem; margin:.2rem 0 1rem;}
+.mnav .mbtn{min-width:3.1rem; min-height:3.1rem; border-radius:12px; border:2px solid var(--ink); background:var(--card); font-size:1.35rem; font-weight:800; cursor:pointer;}
+.mnav .mtitle{flex:1; text-align:center; font-family:Georgia,serif; font-size:1.35rem; font-weight:700;}
+
+/* ---------- Панели ---------- */
+.panel{border:2px solid var(--ink); border-radius:var(--radius); background:var(--card); padding:1rem; margin:.9rem 0;}
+.panel h2{font-size:1.2rem; margin-bottom:.6rem; border-bottom:1.5px dashed var(--line); padding-bottom:.4rem;}
+.total-card{text-align:center; padding:1.1rem 1rem;}
+.total-card .tc-label{font-weight:700; color:var(--muted);}
+.total-card .tc-sum{font-family:Georgia,serif; font-size:2.4rem; font-weight:700; margin:.15rem 0; font-variant-numeric:tabular-nums; overflow-wrap:anywhere;}
+.total-card.spend .tc-sum{color:var(--exp);}
+.total-card.earn .tc-sum{color:var(--inc);}
+.total-card .tc-today{font-size:.95rem; color:var(--muted); font-weight:700;}
+
+/* ---------- Строки «гроссбуха» с точечной линией ---------- */
+.lrow{display:flex; align-items:baseline; gap:.45rem; padding:.45rem 0; font-size:1.05rem;}
+.lrow .ic{flex:none;}
+.lrow .nm{font-weight:700; min-width:0;}
+.lrow .dots{flex:1; border-bottom:2px dotted var(--line); transform:translateY(-.28em); min-width:1.2rem;}
+.lrow .amt{font-weight:800; white-space:nowrap; font-variant-numeric:tabular-nums;}
+.lrow .amt.exp{color:var(--exp);}
+.lrow .amt.inc{color:var(--inc);}
+.lrow .chip{flex:none; width:.9rem; height:.9rem; border-radius:4px; transform:translateY(.1em);}
+.lrow .pct{color:var(--muted); font-weight:700; white-space:nowrap; font-size:.92rem;}
+
+/* ---------- Список записей ---------- */
+.section-title{margin:1.2rem 0 .6rem; font-size:1.25rem;}
+.dhead{display:flex; align-items:baseline; gap:.5rem; margin:1rem 0 .4rem; color:var(--muted); font-weight:800;}
+.dhead .dots{flex:1; border-bottom:2px dotted var(--line); transform:translateY(-.28em);}
+.dhead .dsum{white-space:nowrap; font-variant-numeric:tabular-nums;}
+.rlist{display:flex; flex-direction:column; gap:.55rem;}
+.rcard{
+  border:2px solid var(--ink); border-radius:var(--radius); background:var(--card);
+  padding:.7rem .9rem; text-align:left; cursor:pointer; width:100%;
+  display:flex; align-items:center; gap:.7rem;
+}
+.rcard .ic{font-size:1.5rem; flex:none;}
+.rcard .mid{flex:1; min-width:0;}
+.rcard .cat{font-weight:800; line-height:1.3;}
+.rcard .note{font-size:.9rem; color:var(--muted); overflow-wrap:anywhere;}
+.rcard .amt{font-weight:800; white-space:nowrap; font-size:1.1rem; font-variant-numeric:tabular-nums;}
+.rcard .amt.exp{color:var(--exp);}
+.rcard .amt.inc{color:var(--inc);}
+
+/* ---------- Формы ---------- */
+.crumbs{display:flex; align-items:center; gap:.5rem; margin-bottom:.8rem; flex-wrap:wrap;}
+.back{border:2px solid var(--ink); background:var(--card); border-radius:12px; min-height:2.9rem; padding:.3rem .9rem; font-weight:700; cursor:pointer;}
+.form h1{font-size:1.6rem; margin:.2rem 0 .8rem;}
+.field{margin-bottom:1rem;}
+.field label{display:block; font-weight:800; margin-bottom:.35rem;}
+.field input, .field select{
+  width:100%; min-height:3.2rem; padding:.55rem .8rem; border:2px solid var(--ink);
+  border-radius:var(--radius); background:var(--card); font-size:1.1rem;
+}
+.field input.sum{font-size:1.6rem; font-weight:800; text-align:center; font-variant-numeric:tabular-nums;}
+.hint{font-size:.85rem; color:var(--muted); margin-top:.3rem;}
+.cats{display:grid; grid-template-columns:repeat(auto-fill,minmax(8.6rem,1fr)); gap:.6rem;}
+.cat{
+  border:2px solid var(--ink); border-radius:var(--radius); background:var(--card);
+  padding:.6rem .5rem; text-align:center; cursor:pointer;
+  display:flex; flex-direction:column; gap:.15rem; align-items:center; min-height:4.6rem;
+}
+.cat .ic{font-size:1.6rem;}
+.cat .nm{font-weight:700; font-size:.92rem; line-height:1.2;}
+.cat[aria-pressed="true"]{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+.row-actions{display:flex; gap:.6rem; flex-wrap:wrap; margin-top:1.2rem;}
+.abtn{min-height:3.2rem; padding:.4rem 1.2rem; border-radius:var(--radius); border:2px solid var(--ink); background:var(--card); font-weight:700; cursor:pointer; font-size:1.05rem;}
+.abtn.acc{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+.abtn.danger{border-color:var(--danger); color:var(--danger);}
+.abtn.wide{width:100%;}
+
+/* ---------- Графики ---------- */
+.chart-wrap{display:flex; flex-direction:column; gap:.8rem; align-items:center;}
+.chart-wrap svg{width:100%; height:auto; max-width:24rem;}
+.chart-wrap svg.bars{max-width:100%;}
+.legend{width:100%;}
+.stat-table{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums;}
+.stat-table th{text-align:left; font-size:.85rem; color:var(--muted); padding:.3rem .2rem; border-bottom:1.5px dashed var(--line);}
+.stat-table th.r, .stat-table td.r{text-align:right;}
+.stat-table td{padding:.42rem .2rem; border-bottom:1px dashed var(--line); font-weight:700;}
+.stat-table tr:last-child td{border-bottom:none;}
+.stat-table td.exp{color:var(--exp);}
+.stat-table td.inc{color:var(--inc);}
+
+/* ---------- Нижние вкладки ---------- */
+.tabs{
+  position:fixed; left:0; right:0; bottom:0; z-index:25; display:flex; gap:.2rem;
+  background:var(--card); border-top:2px solid var(--line);
+  padding:.3rem .35rem calc(.3rem + env(safe-area-inset-bottom));
+}
+.tab{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:.05rem;
+  background:none; border:none; padding:.4rem .2rem; cursor:pointer;
+  border-radius:12px; font-weight:800; color:var(--muted); font-size:.8rem;
+}
+.tab .ic{font-size:1.5rem;}
+.tab.on{color:var(--accent); background:var(--accent-soft);}
+
+/* ---------- Плавающая кнопка ---------- */
+.fab{
+  position:fixed; right:1rem; bottom:5.2rem; z-index:30;
+  min-height:3.6rem; padding:.5rem 1.3rem; border-radius:999px;
+  background:var(--accent); color:var(--accent-ink); border:none;
+  font-size:1.1rem; font-weight:800; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.25);
+}
+.fab[hidden]{display:none;}
+
+/* ---------- Разное ---------- */
+.empty{border:2px dashed var(--muted); border-radius:var(--radius); padding:1.4rem 1rem; text-align:center; color:var(--muted); font-size:1.05rem;}
+.toast{
+  position:fixed; left:50%; bottom:9rem; transform:translateX(-50%);
+  background:var(--ink); color:var(--bg); padding:.6rem 1.2rem; border-radius:999px;
+  font-weight:700; z-index:50; opacity:0; transition:opacity .25s; pointer-events:none; max-width:92vw; text-align:center;
+}
+.toast.show{opacity:1;}
+.sheet-bg{position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:60; display:flex; align-items:flex-end; justify-content:center;}
+.sheet{background:var(--card); width:100%; max-width:34rem; border-radius:20px 20px 0 0; padding:1rem 1rem 1.4rem; max-height:85vh; overflow:auto;}
+.sheet h3{font-size:1.2rem; margin-bottom:.2rem;}
+.sheet .sub{color:var(--muted); font-size:.92rem; margin-bottom:1rem;}
+.sheet .abtn{width:100%; margin-bottom:.6rem;}
+.more-p{margin-bottom:.7rem; font-size:1rem;}
+.scan-video{width:100%; max-height:60vh; object-fit:cover; background:#000; border:2px solid var(--ink); border-radius:var(--radius); display:block;}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important; animation:none!important;} }
+
+/* ---------- Печать отчёта (сохранение в PDF) ---------- */
+.print-area h1{font-size:1.55rem; margin:.3rem 0 .2rem;}
+.print-area .gen{color:var(--muted); font-size:.92rem; margin-bottom:.6rem;}
+@media print{
+  header, .tabs, .fab, .toast, .no-print{display:none !important;}
+  :root, [data-theme="dark"]{
+    --bg:#fff; --card:#fff; --ink:#000; --muted:#444; --line:#999;
+    --accent:#1F5F46; --accent-soft:#eee; --exp:#8A3015; --inc:#1D5C40;
+    --danger:#8A3015; --ok:#1D5C40;
+  }
+  body{background:#fff;}
+  main{max-width:100%; padding:0;}
+  .panel{break-inside:avoid; border-width:1.5px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="brand" id="homeBtn" aria-label="На главный экран">
+    <span class="logo">📒</span><span class="t">Домашняя бухгалтерия</span>
+  </button>
+  <div class="scale-group" role="group" aria-label="Размер текста">
+    <span class="lbl">Текст</span>
+    <button class="hbtn" id="fontMinus" aria-label="Уменьшить текст">А−</button>
+    <button class="hbtn" id="fontPlus" aria-label="Увеличить текст">А+</button>
+  </div>
+  <button class="hbtn" id="themeBtn" aria-label="Переключить тему">🌙</button>
+  <span class="netdot off" id="netDot" title="Состояние сети"><span class="d"></span><span id="netTxt">офлайн</span></span>
+</header>
+
+<main id="app" aria-live="polite"></main>
+
+<button class="fab" id="fab" hidden>＋ Добавить расход</button>
+
+<nav class="tabs" aria-label="Разделы">
+  <button class="tab" data-tab="exp"><span class="ic">💸</span>Расходы</button>
+  <button class="tab" data-tab="stats"><span class="ic">📊</span>Графики</button>
+  <button class="tab" data-tab="inc"><span class="ic">💰</span>Доходы</button>
+  <button class="tab" data-tab="more"><span class="ic">⚙️</span>Ещё</button>
+</nav>
+
+<div class="toast" id="toast" role="status"></div>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
+<script src="jsQR.js"></script>
+<script>
+"use strict";
+/* ================= Справочники ================= */
+const CATS = [
+  {id:"food",      ic:"🛒", nm:"Продукты"},
+  {id:"utilities", ic:"🏠", nm:"Коммунальные"},
+  {id:"med",       ic:"💊", nm:"Аптека, здоровье"},
+  {id:"transport", ic:"🚌", nm:"Транспорт"},
+  {id:"auto",      ic:"🚗", nm:"Машина"},
+  {id:"phone",     ic:"📱", nm:"Связь, интернет"},
+  {id:"cloth",     ic:"👕", nm:"Одежда, обувь"},
+  {id:"house",     ic:"🧺", nm:"Дом и быт"},
+  {id:"pets",      ic:"🐾", nm:"Питомцы"},
+  {id:"edu",       ic:"🎓", nm:"Учёба"},
+  {id:"gift",      ic:"🎁", nm:"Подарки"},
+  {id:"fun",       ic:"🎭", nm:"Отдых"},
+  {id:"other",     ic:"📦", nm:"Прочее"}
+];
+const INC_SRC = [
+  {id:"pension",  ic:"🏦", nm:"Пенсия"},
+  {id:"salary",   ic:"💼", nm:"Зарплата"},
+  {id:"side",     ic:"🔧", nm:"Подработка"},
+  {id:"transfer", ic:"💳", nm:"Перевод"},
+  {id:"iother",   ic:"📦", nm:"Другое"}
+];
+const PALETTE = ["#2E7D5B","#B0512F","#8E2043","#3B6FB5","#B08A1C","#6C4FA3","#4E7A8A","#A24E7B","#5B7A2E","#7A6A55"];
+const CURRENCIES = ["₸","₽","$","€"];
+const VERSION = "1.2";
+const PERIODS = [
+  {id:"week",   ic:"🗓", nm:"Неделя"},
+  {id:"month",  ic:"📅", nm:"Месяц"},
+  {id:"quarter",ic:"🌗", nm:"Квартал"},
+  {id:"year",   ic:"🎆", nm:"Год"},
+  {id:"decade", ic:"🔟", nm:"10 лет"},
+  {id:"all",    ic:"♾️", nm:"Весь период"}
+];
+
+function catById(id){ return CATS.find(c=>c.id===id) || CATS[CATS.length-1]; }
+function srcById(id){ return INC_SRC.find(c=>c.id===id) || INC_SRC[INC_SRC.length-1]; }
+
+/* ================= Хранилище (localStorage + запасной вариант в памяти) ================= */
+const memStore = {};
+const Store = {
+  ok:true,
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ this.ok=false; return memStore[k]??null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){ this.ok=false; memStore[k]=v; } }
+};
+const KEY  = "budget.data.v1";
+const PREF = "budget.prefs.v1";
+
+function normRec(r, kind){
+  if (!r || typeof r!=="object") return null;
+  const sum = Number(r.sum);
+  if (!isFinite(sum) || sum<=0) return null;
+  const date = (typeof r.date==="string" && /^\d{4}-\d{2}-\d{2}$/.test(r.date)) ? r.date : todayStr();
+  const id = (typeof r.id==="string" && r.id) ? r.id : genId();
+  const note = (typeof r.note==="string") ? r.note.slice(0,200) : "";
+  if (kind==="exp"){
+    const cat = CATS.some(c=>c.id===r.cat) ? r.cat : "other";
+    return {id, date, cat, sum, note};
+  }
+  const src = INC_SRC.some(c=>c.id===r.src) ? r.src : "iother";
+  return {id, date, src, sum, note};
+}
+function normData(obj){
+  const d = {expenses:[], incomes:[]};
+  if (obj && Array.isArray(obj.expenses)) d.expenses = obj.expenses.map(r=>normRec(r,"exp")).filter(Boolean);
+  if (obj && Array.isArray(obj.incomes))  d.incomes  = obj.incomes.map(r=>normRec(r,"inc")).filter(Boolean);
+  return d;
+}
+function loadData(){
+  const raw = Store.get(KEY);
+  if (!raw) return {expenses:[], incomes:[]};
+  try{ return normData(JSON.parse(raw)); }catch(e){ return {expenses:[], incomes:[]}; }
+}
+let data = loadData();
+function save(){ Store.set(KEY, JSON.stringify(data)); }
+
+let prefs = {scale:1, theme:"light", cur:"₸"};
+try{ const p=Store.get(PREF); if(p) prefs=Object.assign(prefs, JSON.parse(p)); }catch(e){}
+function savePrefs(){ Store.set(PREF, JSON.stringify(prefs)); }
+
+/* ================= Утилиты ================= */
+const $ = s => document.querySelector(s);
+function esc(s){ return String(s).replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+function genId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function monthKey(dateStr){ return dateStr.slice(0,7); }
+function shiftMonth(mk, delta){
+  const [y,m]=mk.split("-").map(Number);
+  const d=new Date(y, m-1+delta, 1);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+}
+function cap(s){ return s ? s[0].toUpperCase()+s.slice(1) : s; }
+function monthLabel(mk){
+  const [y,m]=mk.split("-").map(Number);
+  const s=new Date(y, m-1, 1).toLocaleDateString("ru-RU",{month:"long",year:"numeric"});
+  return cap(s.replace(" г.",""));
+}
+function monthShort(mk){
+  const [y,m]=mk.split("-").map(Number);
+  return cap(new Date(y, m-1, 1).toLocaleDateString("ru-RU",{month:"short"})).replace(".","");
+}
+function dayLabel(dateStr){
+  const t=todayStr();
+  if (dateStr===t) return "Сегодня";
+  const [y,m,d]=dateStr.split("-").map(Number);
+  const yd=new Date(); yd.setDate(yd.getDate()-1);
+  const yStr=yd.getFullYear()+"-"+String(yd.getMonth()+1).padStart(2,"0")+"-"+String(yd.getDate()).padStart(2,"0");
+  if (dateStr===yStr) return "Вчера";
+  return cap(new Date(y,m-1,d).toLocaleDateString("ru-RU",{weekday:"long",day:"numeric",month:"long"}));
+}
+const nf = new Intl.NumberFormat("ru-RU",{maximumFractionDigits:2});
+function money(n){ return nf.format(n)+" "+prefs.cur; }
+function moneyShort(n){
+  if (n>=1e6) return nf.format(Math.round(n/1e5)/10)+" млн";
+  if (n>=1e4) return nf.format(Math.round(n/100)/10)+" тыс";
+  return nf.format(Math.round(n));
+}
+function parseSum(v){
+  const n=parseFloat(String(v).replace(/\s/g,"").replace(",", "."));
+  return isFinite(n) ? Math.round(n*100)/100 : NaN;
+}
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(toast._tm); toast._tm=setTimeout(()=>t.classList.remove("show"), 2600);
+}
+function b(sel, fn){ const el=$(sel); if(el) el.addEventListener("click", fn); }
+
+/* ================= Выборки ================= */
+function expOfMonth(mk){ return data.expenses.filter(r=>monthKey(r.date)===mk); }
+function incOfMonth(mk){ return data.incomes.filter(r=>monthKey(r.date)===mk); }
+function total(list){ return list.reduce((s,r)=>s+r.sum, 0); }
+function byCat(list){
+  const m={};
+  list.forEach(r=>{ m[r.cat]=(m[r.cat]||0)+r.sum; });
+  return Object.entries(m).map(([cat,sum])=>({cat,sum})).sort((a,b)=>b.sum-a.sum);
+}
+function groupByDate(list){
+  const m={};
+  list.forEach(r=>{ (m[r.date]=m[r.date]||[]).push(r); });
+  return Object.keys(m).sort().reverse().map(d=>({date:d, items:m[d].slice().reverse()}));
+}
+
+/* ================= Состояние интерфейса ================= */
+let ui = { tab:"exp", month:monthKey(todayStr()), editExp:null, editInc:null, report:null, scan:null, prefill:null };
+
+/* ================= Отрисовка ================= */
+function render(){
+  if (!ui.scan) stopScan();
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("on", t.dataset.tab===ui.tab));
+  const fab=$("#fab");
+  const app=$("#app");
+  if (ui.scan){ fab.hidden=true; renderScan(app); return; }
+  if (ui.editExp!==null){ fab.hidden=true; renderExpForm(app); return; }
+  if (ui.editInc!==null){ fab.hidden=true; renderIncForm(app); return; }
+  if (ui.report){ fab.hidden=true; renderReport(app); return; }
+  if (ui.tab==="exp"){ fab.hidden=false; fab.textContent="＋ Добавить расход"; renderExpenses(app); }
+  else if (ui.tab==="stats"){ fab.hidden=true; renderStats(app); }
+  else if (ui.tab==="inc"){ fab.hidden=false; fab.textContent="＋ Добавить доход"; renderIncomes(app); }
+  else { fab.hidden=true; renderMore(app); }
+  window.scrollTo(0,0);
+}
+
+function mnavHtml(){
+  return `<div class="mnav">
+    <button class="mbtn" id="mPrev" aria-label="Предыдущий месяц">‹</button>
+    <div class="mtitle" id="mTitle">${esc(monthLabel(ui.month))}</div>
+    <button class="mbtn" id="mNext" aria-label="Следующий месяц">›</button>
+  </div>`;
+}
+function bindMnav(){
+  b("#mPrev", ()=>{ ui.month=shiftMonth(ui.month,-1); render(); });
+  b("#mNext", ()=>{ ui.month=shiftMonth(ui.month, 1); render(); });
+}
+
+/* ---------- Экран «Расходы» ---------- */
+function renderExpenses(app){
+  const list=expOfMonth(ui.month);
+  const sum=total(list);
+  const todaySum=total(list.filter(r=>r.date===todayStr()));
+  const cats=byCat(list);
+  const groups=groupByDate(list);
+
+  let html=mnavHtml();
+  html+=`<section class="panel total-card spend">
+    <div class="tc-label">Потрачено за ${esc(monthLabel(ui.month).toLowerCase())}</div>
+    <div class="tc-sum">${esc(money(sum))}</div>
+    ${monthKey(todayStr())===ui.month ? `<div class="tc-today">Сегодня: ${esc(money(todaySum))}</div>` : ""}
+  </section>
+  <button class="abtn wide" id="scanBtn" style="margin:.1rem 0 .6rem">📷 Сканировать чек (QR)</button>`;
+
+  if (cats.length){
+    html+=`<section class="panel"><h2>По категориям</h2>`;
+    cats.forEach(c=>{
+      const cat=catById(c.cat);
+      html+=`<div class="lrow"><span class="ic">${cat.ic}</span><span class="nm">${esc(cat.nm)}</span><span class="dots"></span><span class="amt exp">${esc(money(c.sum))}</span></div>`;
+    });
+    html+=`</section>`;
+  }
+
+  html+=`<h2 class="section-title">Записи</h2>`;
+  if (!groups.length){
+    html+=`<div class="empty">За ${esc(monthLabel(ui.month).toLowerCase())} расходов пока нет.<br>Нажмите кнопку «＋ Добавить расход».</div>`;
+  } else {
+    groups.forEach(g=>{
+      html+=`<div class="dhead"><span>${esc(dayLabel(g.date))}</span><span class="dots"></span><span class="dsum">− ${esc(money(total(g.items)))}</span></div><div class="rlist">`;
+      g.items.forEach(r=>{
+        const cat=catById(r.cat);
+        html+=`<button class="rcard" data-exp="${r.id}" aria-label="Изменить запись: ${esc(cat.nm)}, ${esc(money(r.sum))}">
+          <span class="ic">${cat.ic}</span>
+          <span class="mid"><span class="cat">${esc(cat.nm)}</span>${r.note?`<div class="note">${esc(r.note)}</div>`:""}</span>
+          <span class="amt exp">− ${esc(money(r.sum))}</span>
+        </button>`;
+      });
+      html+=`</div>`;
+    });
+  }
+  app.innerHTML=html;
+  bindMnav();
+  b("#scanBtn", ()=>{ ui.scan={}; render(); });
+  app.querySelectorAll("[data-exp]").forEach(el=>el.addEventListener("click", ()=>{ ui.editExp=el.dataset.exp; render(); }));
+}
+
+/* ---------- Сканирование QR с чека ---------- */
+let scanStream=null, scanRAF=0;
+function stopScan(){
+  if (scanRAF){ cancelAnimationFrame(scanRAF); scanRAF=0; }
+  if (scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream=null; }
+}
+function parseFiscalQR(text){
+  const ms=/(?:^|[?&])s=(\d+(?:[.,]\d{1,2})?)/i.exec(text);
+  if (!ms) return null;
+  const sum=parseFloat(ms[1].replace(",","."));
+  if (!isFinite(sum) || sum<=0) return null;
+  let date=todayStr();
+  const mt=/(?:^|[?&])t=(\d{4})(\d{2})(\d{2})(?:T\d{2,6})?/i.exec(text);
+  if (mt){
+    const mo=+mt[2], dd=+mt[3];
+    if (mo>=1 && mo<=12 && dd>=1 && dd<=31) date=mt[1]+"-"+mt[2]+"-"+mt[3];
+  }
+  return {sum, date};
+}
+function handleQRText(text){
+  stopScan();
+  const f=parseFiscalQR(text);
+  if (f){
+    ui.scan=null; ui.prefill=f; ui.editExp="";
+    render();
+  } else {
+    ui.scan={failed:true};
+    render();
+  }
+}
+function scanImageData(ctxCanvas){
+  const g=ctxCanvas.getContext("2d");
+  const img=g.getImageData(0,0,ctxCanvas.width,ctxCanvas.height);
+  return jsQR(img.data, img.width, img.height, {inversionAttempts:"dontInvert"});
+}
+function renderScan(app){
+  const noLib = (typeof jsQR==="undefined");
+  let html=`<div class="crumbs"><button class="back" id="backBtn">‹ Назад</button></div>
+  <div class="form"><h1>Сканирование чека</h1>`;
+  if (ui.scan.failed){
+    html+=`<div class="panel"><p class="more-p">QR-код прочитан, но <b>суммы внутри него нет</b>. Так бывает: не на всех чеках QR содержит данные о покупке (например, на казахстанских чеках там обычно только ссылка).</p>
+    <p class="more-p">Российские кассовые чеки со значком ФНС сканируются с суммой и датой.</p></div>
+    <div class="row-actions">
+      <button class="abtn acc" id="againBtn">Сканировать ещё раз</button>
+      <button class="abtn" id="manualBtn">Ввести вручную</button>
+    </div>`;
+  } else if (noLib){
+    html+=`<div class="panel"><p class="more-p">Модуль распознавания не найден: рядом с приложением должен лежать файл <b>jsQR.js</b>.</p></div>`;
+  } else {
+    html+=`<p class="hint" style="margin-bottom:.6rem">Наведите камеру на QR-код в нижней части чека. Сумма и дата подставятся сами — останется выбрать категорию.</p>
+    <video id="scanVideo" class="scan-video" playsinline muted autoplay></video>
+    <p class="hint" id="scanMsg" style="margin-top:.5rem"></p>
+    <div class="row-actions">
+      <button class="abtn" id="photoBtn">Выбрать фото с QR-кодом</button>
+      <button class="abtn" id="cancelBtn">Отмена</button>
+    </div>
+    <input type="file" id="scanFile" accept="image/*" hidden>`;
+  }
+  html+=`</div>`;
+  app.innerHTML=html;
+
+  const close=()=>{ ui.scan=null; render(); };
+  b("#backBtn", close); b("#cancelBtn", close);
+  b("#againBtn", ()=>{ ui.scan={}; render(); });
+  b("#manualBtn", ()=>{ ui.scan=null; ui.editExp=""; render(); });
+  if (ui.scan.failed || noLib) return;
+
+  const video=$("#scanVideo"), msg=$("#scanMsg");
+  const canvas=document.createElement("canvas");
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}, audio:false})
+      .then(stream=>{
+        scanStream=stream;
+        video.srcObject=stream;
+        const p=video.play(); if (p && p.catch) p.catch(()=>{});
+        const tick=()=>{
+          if (!scanStream) return;
+          if (video.readyState>=2 && video.videoWidth){
+            canvas.width=video.videoWidth; canvas.height=video.videoHeight;
+            canvas.getContext("2d").drawImage(video,0,0);
+            let code=null;
+            try{ code=scanImageData(canvas); }catch(e){}
+            if (code && code.data){ handleQRText(code.data); return; }
+          }
+          scanRAF=requestAnimationFrame(tick);
+        };
+        scanRAF=requestAnimationFrame(tick);
+      })
+      .catch(()=>{ video.style.display="none"; msg.textContent="Камера недоступна (нет разрешения или камеры). Можно выбрать фото с QR-кодом."; });
+  } else {
+    video.style.display="none";
+    msg.textContent="Камера в этом браузере недоступна. Можно выбрать фото с QR-кодом.";
+  }
+  b("#photoBtn", ()=>$("#scanFile").click());
+  const sf=$("#scanFile");
+  if (sf) sf.addEventListener("change", e=>{
+    const f=e.target.files[0]; e.target.value="";
+    if (!f) return;
+    const img=new Image();
+    img.onload=()=>{
+      canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
+      canvas.getContext("2d").drawImage(img,0,0);
+      URL.revokeObjectURL(img.src);
+      let code=null;
+      try{ code=scanImageData(canvas); }catch(err){}
+      if (code && code.data) handleQRText(code.data);
+      else msg.textContent="QR-код на фото не найден. Попробуйте снять крупнее и без бликов.";
+    };
+    img.onerror=()=>{ msg.textContent="Не удалось открыть фото."; };
+    img.src=URL.createObjectURL(f);
+  });
+}
+
+/* ---------- Форма расхода / дохода ---------- */
+function renderExpForm(app){
+  const rec = ui.editExp==="" ? null : data.expenses.find(r=>r.id===ui.editExp);
+  const isNew = !rec;
+  const pre = (isNew && ui.prefill) ? ui.prefill : null;
+  ui.prefill=null;
+  let selCat = rec ? rec.cat : "";
+  const sumVal = rec ? esc(String(rec.sum).replace(".",",")) : (pre ? esc(String(pre.sum).replace(".",",")) : "");
+  const dateVal = rec ? rec.date : (pre ? pre.date : todayStr());
+  let html=`<div class="crumbs"><button class="back" id="backBtn">‹ Назад</button></div>
+  <div class="form">
+    <h1>${isNew?"Новый расход":"Изменить расход"}</h1>
+    ${pre?`<div class="panel" style="padding:.7rem .9rem; margin:.2rem 0 .9rem"><b>Из чека:</b> сумма и дата подставлены автоматически. Выберите категорию и нажмите «Сохранить».</div>`:""}
+    <div class="field"><label for="fSum">Сумма (${esc(prefs.cur)})</label>
+      <input id="fSum" class="sum" inputmode="decimal" autocomplete="off" placeholder="0" value="${sumVal}">
+    </div>
+    <div class="field"><label>Категория</label>
+      <div class="cats" id="fCats">${CATS.map(c=>`<button type="button" class="cat" data-cat="${c.id}" aria-pressed="${c.id===selCat}"><span class="ic">${c.ic}</span><span class="nm">${esc(c.nm)}</span></button>`).join("")}</div>
+    </div>
+    <div class="field"><label for="fDate">Дата</label>
+      <input id="fDate" type="date" value="${dateVal}">
+    </div>
+    <div class="field"><label for="fNote">Заметка <span style="font-weight:400;color:var(--muted)">(не обязательно)</span></label>
+      <input id="fNote" autocomplete="off" placeholder="Например: хлеб, молоко" value="${rec?esc(rec.note):""}" maxlength="200">
+    </div>
+    <div class="row-actions">
+      <button class="abtn acc" id="saveBtn">Сохранить</button>
+      <button class="abtn" id="cancelBtn">Отмена</button>
+      ${isNew?"":`<button class="abtn danger" id="delBtn">Удалить</button>`}
+    </div>
+  </div>`;
+  app.innerHTML=html;
+
+  const close=()=>{ ui.editExp=null; render(); };
+  b("#backBtn", close); b("#cancelBtn", close);
+  app.querySelectorAll("[data-cat]").forEach(el=>el.addEventListener("click", ()=>{
+    selCat=el.dataset.cat;
+    app.querySelectorAll("[data-cat]").forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.cat===selCat)));
+  }));
+  b("#saveBtn", ()=>{
+    const sum=parseSum($("#fSum").value);
+    if (!isFinite(sum) || sum<=0){ toast("Введите сумму больше нуля"); $("#fSum").focus(); return; }
+    if (!selCat){ toast("Выберите категорию"); return; }
+    const date=$("#fDate").value || todayStr();
+    const note=$("#fNote").value.trim();
+    if (isNew){
+      data.expenses.push({id:genId(), date, cat:selCat, sum, note});
+      toast("Расход записан: "+money(sum));
+    } else {
+      Object.assign(rec, {date, cat:selCat, sum, note});
+      toast("Запись изменена");
+    }
+    save();
+    ui.month=monthKey(date);
+    close();
+  });
+  if (!isNew) b("#delBtn", ()=>{
+    if (!confirm("Удалить эту запись?")) return;
+    data.expenses=data.expenses.filter(r=>r.id!==rec.id);
+    save(); toast("Запись удалена"); close();
+  });
+  if (isNew) $("#fSum").focus();
+}
+
+function renderIncForm(app){
+  const rec = ui.editInc==="" ? null : data.incomes.find(r=>r.id===ui.editInc);
+  const isNew = !rec;
+  let selSrc = rec ? rec.src : "";
+  let html=`<div class="crumbs"><button class="back" id="backBtn">‹ Назад</button></div>
+  <div class="form">
+    <h1>${isNew?"Новый доход":"Изменить доход"}</h1>
+    <div class="field"><label for="fSum">Сумма (${esc(prefs.cur)})</label>
+      <input id="fSum" class="sum" inputmode="decimal" autocomplete="off" placeholder="0" value="${rec?esc(String(rec.sum).replace(".",",")):""}">
+    </div>
+    <div class="field"><label>Откуда</label>
+      <div class="cats" id="fSrcs">${INC_SRC.map(c=>`<button type="button" class="cat" data-src="${c.id}" aria-pressed="${c.id===selSrc}"><span class="ic">${c.ic}</span><span class="nm">${esc(c.nm)}</span></button>`).join("")}</div>
+    </div>
+    <div class="field"><label for="fDate">Дата</label>
+      <input id="fDate" type="date" value="${rec?rec.date:todayStr()}">
+    </div>
+    <div class="field"><label for="fNote">Заметка <span style="font-weight:400;color:var(--muted)">(не обязательно)</span></label>
+      <input id="fNote" autocomplete="off" placeholder="" value="${rec?esc(rec.note):""}" maxlength="200">
+    </div>
+    <div class="row-actions">
+      <button class="abtn acc" id="saveBtn">Сохранить</button>
+      <button class="abtn" id="cancelBtn">Отмена</button>
+      ${isNew?"":`<button class="abtn danger" id="delBtn">Удалить</button>`}
+    </div>
+  </div>`;
+  app.innerHTML=html;
+
+  const close=()=>{ ui.editInc=null; render(); };
+  b("#backBtn", close); b("#cancelBtn", close);
+  app.querySelectorAll("[data-src]").forEach(el=>el.addEventListener("click", ()=>{
+    selSrc=el.dataset.src;
+    app.querySelectorAll("[data-src]").forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.src===selSrc)));
+  }));
+  b("#saveBtn", ()=>{
+    const sum=parseSum($("#fSum").value);
+    if (!isFinite(sum) || sum<=0){ toast("Введите сумму больше нуля"); $("#fSum").focus(); return; }
+    if (!selSrc){ toast("Выберите, откуда доход"); return; }
+    const date=$("#fDate").value || todayStr();
+    const note=$("#fNote").value.trim();
+    if (isNew){
+      data.incomes.push({id:genId(), date, src:selSrc, sum, note});
+      toast("Доход записан: "+money(sum));
+    } else {
+      Object.assign(rec, {date, src:selSrc, sum, note});
+      toast("Запись изменена");
+    }
+    save();
+    ui.month=monthKey(date);
+    close();
+  });
+  if (!isNew) b("#delBtn", ()=>{
+    if (!confirm("Удалить эту запись?")) return;
+    data.incomes=data.incomes.filter(r=>r.id!==rec.id);
+    save(); toast("Запись удалена"); close();
+  });
+  if (isNew) $("#fSum").focus();
+}
+
+/* ---------- Экран «Доходы» ---------- */
+function renderIncomes(app){
+  const list=incOfMonth(ui.month);
+  const sum=total(list);
+  const groups=groupByDate(list);
+  let html=mnavHtml();
+  html+=`<section class="panel total-card earn">
+    <div class="tc-label">Получено за ${esc(monthLabel(ui.month).toLowerCase())}</div>
+    <div class="tc-sum">${esc(money(sum))}</div>
+  </section>
+  <h2 class="section-title">Записи</h2>`;
+  if (!groups.length){
+    html+=`<div class="empty">За ${esc(monthLabel(ui.month).toLowerCase())} доходов пока нет.<br>Нажмите кнопку «＋ Добавить доход».</div>`;
+  } else {
+    groups.forEach(g=>{
+      html+=`<div class="dhead"><span>${esc(dayLabel(g.date))}</span><span class="dots"></span><span class="dsum">+ ${esc(money(total(g.items)))}</span></div><div class="rlist">`;
+      g.items.forEach(r=>{
+        const src=srcById(r.src);
+        html+=`<button class="rcard" data-inc="${r.id}" aria-label="Изменить запись: ${esc(src.nm)}, ${esc(money(r.sum))}">
+          <span class="ic">${src.ic}</span>
+          <span class="mid"><span class="cat">${esc(src.nm)}</span>${r.note?`<div class="note">${esc(r.note)}</div>`:""}</span>
+          <span class="amt inc">+ ${esc(money(r.sum))}</span>
+        </button>`;
+      });
+      html+=`</div>`;
+    });
+  }
+  app.innerHTML=html;
+  bindMnav();
+  app.querySelectorAll("[data-inc]").forEach(el=>el.addEventListener("click", ()=>{ ui.editInc=el.dataset.inc; render(); }));
+}
+
+/* ---------- Экран «Графики» ---------- */
+function ringPath(cx,cy,rO,rI,a0,a1){
+  if (a1-a0>=360) a1=a0+359.99;
+  const rad=a=>a*Math.PI/180;
+  const p=(r,a)=>[(cx+r*Math.cos(rad(a))).toFixed(2), (cy+r*Math.sin(rad(a))).toFixed(2)];
+  const large=(a1-a0)>180?1:0;
+  const [x0,y0]=p(rO,a0),[x1,y1]=p(rO,a1),[x2,y2]=p(rI,a1),[x3,y3]=p(rI,a0);
+  return `M${x0} ${y0} A${rO} ${rO} 0 ${large} 1 ${x1} ${y1} L${x2} ${y2} A${rI} ${rI} 0 ${large} 0 ${x3} ${y3} Z`;
+}
+function donutSvg(cats, sum){
+  let a=-90, paths="";
+  cats.forEach((c,i)=>{
+    const sweep=c.sum/sum*360;
+    paths+=`<path d="${ringPath(110,110,100,62,a,a+sweep)}" fill="${PALETTE[i%PALETTE.length]}" stroke="var(--card)" stroke-width="2"></path>`;
+    a+=sweep;
+  });
+  return `<svg viewBox="0 0 220 220" role="img" aria-hidden="true">
+    ${paths}
+    <text x="110" y="104" text-anchor="middle" font-size="24" font-weight="800" fill="var(--ink)" font-family="Georgia,serif">${esc(moneyShort(sum))}</text>
+    <text x="110" y="128" text-anchor="middle" font-size="14" font-weight="700" fill="var(--muted)">${esc(prefs.cur)} за месяц</text>
+  </svg>`;
+}
+function niceMax(v){
+  if (v<=0) return 1;
+  const p=Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1,2,2.5,5,10]) if (m*p>=v) return m*p;
+  return 10*p;
+}
+function barsSvg(months){
+  const W=640,H=330,x0=84,x1=624,y0=18,y1=262;
+  const maxV=niceMax(Math.max(1, ...months.map(m=>Math.max(m.exp,m.inc))));
+  const y=v=>y1-(v/maxV)*(y1-y0);
+  let s="";
+  for (let i=0;i<=4;i++){
+    const v=maxV*i/4, yy=y(v).toFixed(1);
+    s+=`<line x1="${x0}" y1="${yy}" x2="${x1}" y2="${yy}" stroke="var(--line)" stroke-width="1" stroke-dasharray="4 4"></line>`;
+    s+=`<text x="${x0-8}" y="${(+yy+5).toFixed(1)}" text-anchor="end" font-size="16" fill="var(--muted)" font-weight="700">${esc(moneyShort(v))}</text>`;
+  }
+  const gw=(x1-x0)/months.length;
+  months.forEach((m,i)=>{
+    const cx=x0+gw*i+gw/2, bw=Math.min(30, gw*0.26);
+    s+=`<rect x="${(cx-bw-2).toFixed(1)}" y="${y(m.exp).toFixed(1)}" width="${bw}" height="${(y1-y(m.exp)).toFixed(1)}" rx="4" style="fill:var(--exp)"></rect>`;
+    s+=`<rect x="${(cx+2).toFixed(1)}" y="${y(m.inc).toFixed(1)}" width="${bw}" height="${(y1-y(m.inc)).toFixed(1)}" rx="4" style="fill:var(--inc)"></rect>`;
+    s+=`<text x="${cx.toFixed(1)}" y="292" text-anchor="middle" font-size="17" font-weight="800" fill="var(--ink)">${esc(monthShort(m.mk))}</text>`;
+  });
+  s+=`<line x1="${x0}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="var(--ink)" stroke-width="2"></line>`;
+  return `<svg class="bars" viewBox="0 0 ${W} ${H}" role="img" aria-hidden="true">${s}</svg>`;
+}
+function renderStats(app){
+  const exp=expOfMonth(ui.month), inc=incOfMonth(ui.month);
+  const eSum=total(exp), iSum=total(inc), rest=iSum-eSum;
+  const cats=byCat(exp);
+
+  let html=mnavHtml();
+  html+=`<section class="panel"><h2>Итоги месяца</h2>
+    <div class="lrow"><span class="nm">Доходы</span><span class="dots"></span><span class="amt inc">+ ${esc(money(iSum))}</span></div>
+    <div class="lrow"><span class="nm">Расходы</span><span class="dots"></span><span class="amt exp">− ${esc(money(eSum))}</span></div>
+    <div class="lrow"><span class="nm">Остаток</span><span class="dots"></span><span class="amt" style="color:var(${rest>=0?"--ok":"--danger"})">${rest>=0?"+ ":"− "}${esc(money(Math.abs(rest)))}</span></div>
+  </section>`;
+
+  html+=`<section class="panel"><h2>Расходы по категориям</h2>`;
+  if (!cats.length){
+    html+=`<div class="empty">За этот месяц расходов нет — рисовать пока нечего.</div>`;
+  } else {
+    html+=`<div class="chart-wrap">${donutSvg(cats,eSum)}<div class="legend">`;
+    cats.forEach((c,i)=>{
+      const cat=catById(c.cat);
+      const pct=Math.round(c.sum/eSum*100);
+      html+=`<div class="lrow"><span class="chip" style="background:${PALETTE[i%PALETTE.length]}"></span><span class="nm">${cat.ic} ${esc(cat.nm)}</span><span class="dots"></span><span class="pct">${pct}%</span><span class="amt exp">${esc(money(c.sum))}</span></div>`;
+    });
+    html+=`</div></div>`;
+  }
+  html+=`</section>`;
+
+  const months=[];
+  let mk=shiftMonth(ui.month,-5);
+  for (let i=0;i<6;i++){ months.push({mk, exp:total(expOfMonth(mk)), inc:total(incOfMonth(mk))}); mk=shiftMonth(mk,1); }
+  const any=months.some(m=>m.exp>0||m.inc>0);
+  html+=`<section class="panel"><h2>Последние 6 месяцев</h2>`;
+  if (!any){
+    html+=`<div class="empty">Записей ещё нет. График появится, когда добавятся расходы или доходы.</div>`;
+  } else {
+    html+=`<div class="chart-wrap">${barsSvg(months)}</div>
+    <div class="lrow" style="gap:1.2rem; justify-content:center; padding-top:.6rem">
+      <span class="nm"><span class="chip" style="background:var(--exp); display:inline-block; margin-right:.35rem"></span>Расходы</span>
+      <span class="nm"><span class="chip" style="background:var(--inc); display:inline-block; margin-right:.35rem"></span>Доходы</span>
+    </div>
+    <table class="stat-table">
+      <tr><th>Месяц</th><th class="r">Расходы</th><th class="r">Доходы</th></tr>
+      ${months.map(m=>`<tr><td>${esc(monthLabel(m.mk))}</td><td class="r exp">${esc(money(m.exp))}</td><td class="r inc">${esc(money(m.inc))}</td></tr>`).join("")}
+    </table>`;
+  }
+  html+=`</section>`;
+  html+=`<button class="abtn wide" id="reportBtn" style="margin:.1rem 0 .8rem">🖨 Отчёт за период (печать / PDF)</button>`;
+  app.innerHTML=html;
+  bindMnav();
+  b("#reportBtn", ()=>{ ui.report={type:"month", anchor:ui.month+"-15"}; render(); });
+}
+
+/* ---------- Отчёты за период ---------- */
+function dstr(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function dOf(s){ const [y,m,dd]=s.split("-").map(Number); return new Date(y,m-1,dd); }
+function dmLabel(s){ return dOf(s).toLocaleDateString("ru-RU",{day:"numeric",month:"long"}); }
+function allDates(){ return [...data.expenses,...data.incomes].map(r=>r.date); }
+function periodRange(type, anchor){
+  const a=dOf(anchor), y=a.getFullYear(), m=a.getMonth();
+  let s,e;
+  if (type==="week"){ const wd=(a.getDay()+6)%7; s=new Date(a); s.setDate(a.getDate()-wd); e=new Date(s); e.setDate(s.getDate()+6); }
+  else if (type==="month"){ s=new Date(y,m,1); e=new Date(y,m+1,0); }
+  else if (type==="quarter"){ const q=Math.floor(m/3); s=new Date(y,q*3,1); e=new Date(y,q*3+3,0); }
+  else if (type==="year"){ s=new Date(y,0,1); e=new Date(y,11,31); }
+  else if (type==="decade"){ const y0=Math.floor(y/10)*10; s=new Date(y0,0,1); e=new Date(y0+9,11,31); }
+  else { const ds=allDates().sort(); return ds.length ? {s:ds[0], e:ds[ds.length-1]} : {s:todayStr(), e:todayStr()}; }
+  return {s:dstr(s), e:dstr(e)};
+}
+function shiftAnchor(type, anchor, delta){
+  const a=dOf(anchor);
+  if (type==="week"){ a.setDate(a.getDate()+7*delta); return dstr(a); }
+  a.setDate(15);
+  if (type==="month") a.setMonth(a.getMonth()+delta);
+  else if (type==="quarter") a.setMonth(a.getMonth()+3*delta);
+  else if (type==="year") a.setFullYear(a.getFullYear()+delta);
+  else if (type==="decade") a.setFullYear(a.getFullYear()+10*delta);
+  return dstr(a);
+}
+function periodLabel(type, rg){
+  const ys=rg.s.slice(0,4), ye=rg.e.slice(0,4);
+  if (type==="week") return (ys===ye ? dmLabel(rg.s) : dmLabel(rg.s)+" "+ys)+" — "+dmLabel(rg.e)+" "+ye;
+  if (type==="month") return monthLabel(rg.s.slice(0,7));
+  if (type==="quarter") return (Math.floor(dOf(rg.s).getMonth()/3)+1)+"-й квартал "+ys;
+  if (type==="year") return ys+" год";
+  if (type==="decade") return ys+"–"+ye+" годы";
+  return "Весь период";
+}
+function sumsBetween(list, s, e){ return total(list.filter(r=>r.date>=s && r.date<=e)); }
+function subRows(type, rg){
+  const rows=[];
+  const push=(label,s,e)=>rows.push({label, exp:sumsBetween(data.expenses,s,e), inc:sumsBetween(data.incomes,s,e)});
+  if (type==="week" || type==="month"){
+    let d=dOf(rg.s);
+    while (dstr(d)<=rg.e){
+      const ds=dstr(d);
+      const has = data.expenses.some(r=>r.date===ds) || data.incomes.some(r=>r.date===ds);
+      if (type==="week" || has) push(cap(d.toLocaleDateString("ru-RU",{weekday:"short",day:"numeric",month:"long"})), ds, ds);
+      d.setDate(d.getDate()+1);
+    }
+  } else if (type==="quarter" || type==="year"){
+    let d=dOf(rg.s);
+    while (dstr(d)<=rg.e){
+      const mk=dstr(d).slice(0,7);
+      push(monthLabel(mk), mk+"-01", mk+"-31");
+      d.setMonth(d.getMonth()+1);
+    }
+  } else {
+    for (let yy=+rg.s.slice(0,4); yy<=+rg.e.slice(0,4); yy++) push(yy+" год", yy+"-01-01", yy+"-12-31");
+  }
+  return rows;
+}
+function renderReport(app){
+  const rp=ui.report;
+  const rg=periodRange(rp.type, rp.anchor);
+  const exp=data.expenses.filter(r=>r.date>=rg.s && r.date<=rg.e);
+  const inc=data.incomes.filter(r=>r.date>=rg.s && r.date<=rg.e);
+  const eSum=total(exp), iSum=total(inc), rest=iSum-eSum;
+  const cats=byCat(exp);
+  const srcs=(()=>{ const m={}; inc.forEach(r=>{ m[r.src]=(m[r.src]||0)+r.sum; }); return Object.entries(m).map(([src,sum])=>({src,sum})).sort((a,b)=>b.sum-a.sum); })();
+  const rows=subRows(rp.type, rg).filter(r=>r.exp>0||r.inc>0 || rp.type==="week");
+  const rowsTitle = (rp.type==="week"||rp.type==="month") ? "По дням" : (rp.type==="quarter"||rp.type==="year") ? "По месяцам" : "По годам";
+
+  let html=`<div class="crumbs no-print"><button class="back" id="backBtn">‹ К графикам</button></div>
+  <section class="panel no-print"><h2>Отчёт: выберите период</h2>
+    <div class="cats" style="margin-bottom:.8rem">${PERIODS.map(p=>`<button type="button" class="cat" data-per="${p.id}" aria-pressed="${p.id===rp.type}"><span class="ic">${p.ic}</span><span class="nm">${esc(p.nm)}</span></button>`).join("")}</div>
+    ${rp.type==="all" ? "" : `<div class="mnav" style="margin:0 0 .8rem">
+      <button class="mbtn" id="rPrev" aria-label="Раньше">‹</button>
+      <div class="mtitle" style="font-size:1.15rem">${esc(periodLabel(rp.type,rg))}</div>
+      <button class="mbtn" id="rNext" aria-label="Позже">›</button>
+    </div>`}
+    <button class="abtn acc wide" id="printBtn">🖨 Печать / сохранить в PDF</button>
+    <p class="hint" style="margin-top:.5rem">В окне печати выберите принтер «Сохранить как PDF» — файл сохранится на устройство.</p>
+  </section>
+  <div class="print-area">
+    <h1>Отчёт: ${esc(periodLabel(rp.type,rg))}</h1>
+    <p class="gen">${esc(dmLabel(rg.s))} ${rg.s.slice(0,4)} — ${esc(dmLabel(rg.e))} ${rg.e.slice(0,4)} · записей: ${exp.length+inc.length} · составлен ${esc(dmLabel(todayStr()))} ${todayStr().slice(0,4)}</p>
+    <section class="panel"><h2>Итоги</h2>
+      <div class="lrow"><span class="nm">Доходы</span><span class="dots"></span><span class="amt inc">+ ${esc(money(iSum))}</span></div>
+      <div class="lrow"><span class="nm">Расходы</span><span class="dots"></span><span class="amt exp">− ${esc(money(eSum))}</span></div>
+      <div class="lrow"><span class="nm">Остаток</span><span class="dots"></span><span class="amt" style="color:var(${rest>=0?"--ok":"--danger"})">${rest>=0?"+ ":"− "}${esc(money(Math.abs(rest)))}</span></div>
+    </section>`;
+  if (cats.length){
+    html+=`<section class="panel"><h2>Расходы по категориям</h2>`;
+    cats.forEach(c=>{
+      const cat=catById(c.cat);
+      html+=`<div class="lrow"><span class="ic">${cat.ic}</span><span class="nm">${esc(cat.nm)}</span><span class="dots"></span><span class="pct">${Math.round(c.sum/eSum*100)}%</span><span class="amt exp">${esc(money(c.sum))}</span></div>`;
+    });
+    html+=`</section>`;
+  }
+  if (srcs.length){
+    html+=`<section class="panel"><h2>Доходы по источникам</h2>`;
+    srcs.forEach(c=>{
+      const src=srcById(c.src);
+      html+=`<div class="lrow"><span class="ic">${src.ic}</span><span class="nm">${esc(src.nm)}</span><span class="dots"></span><span class="pct">${Math.round(c.sum/iSum*100)}%</span><span class="amt inc">${esc(money(c.sum))}</span></div>`;
+    });
+    html+=`</section>`;
+  }
+  if (rows.length>1){
+    html+=`<section class="panel"><h2>${rowsTitle}</h2>
+      <table class="stat-table">
+        <tr><th>Период</th><th class="r">Расходы</th><th class="r">Доходы</th></tr>
+        ${rows.map(r=>`<tr><td>${esc(r.label)}</td><td class="r exp">${r.exp?esc(money(r.exp)):"—"}</td><td class="r inc">${r.inc?esc(money(r.inc)):"—"}</td></tr>`).join("")}
+      </table>
+    </section>`;
+  }
+  if (!exp.length && !inc.length){
+    html+=`<div class="empty">За этот период записей нет.</div>`;
+  }
+  html+=`<p class="hint">Домашняя бухгалтерия, версия ${VERSION}.</p></div>`;
+  app.innerHTML=html;
+  b("#backBtn", ()=>{ ui.report=null; render(); });
+  b("#printBtn", ()=>window.print());
+  b("#rPrev", ()=>{ rp.anchor=shiftAnchor(rp.type, rp.anchor, -1); render(); });
+  b("#rNext", ()=>{ rp.anchor=shiftAnchor(rp.type, rp.anchor, 1); render(); });
+  app.querySelectorAll("[data-per]").forEach(el=>el.addEventListener("click", ()=>{
+    rp.type=el.dataset.per; render();
+  }));
+}
+
+/* ---------- Экран «Ещё» ---------- */
+let deferredPrompt=null;
+function renderMore(app){
+  const n=data.expenses.length+data.incomes.length;
+  let html=`
+  <section class="panel"><h2>💾 Резервная копия</h2>
+    <p class="more-p">Все записи хранятся <b>только на этом устройстве</b>. Чтобы не потерять их и чтобы перенести на другое устройство (компьютер, телефон), время от времени сохраняйте копию в файл.</p>
+    <div class="row-actions" style="margin-top:.4rem">
+      <button class="abtn acc" id="expBtn">Сохранить копию в файл</button>
+      <button class="abtn" id="impBtn">Загрузить из файла</button>
+    </div>
+    <p class="hint" style="margin-top:.7rem">Как перенести на другое устройство: нажмите «Сохранить копию в файл», отправьте файл себе (например, через WhatsApp или почту), откройте приложение на втором устройстве и нажмите «Загрузить из файла».</p>
+  </section>
+  <section class="panel"><h2>⚙️ Настройки</h2>
+    <div class="field"><label for="curSel">Валюта</label>
+      <select id="curSel">${CURRENCIES.map(c=>`<option value="${c}" ${c===prefs.cur?"selected":""}>${c}</option>`).join("")}</select>
+    </div>
+    <p class="hint">Размер текста меняется кнопками «А−» и «А+» вверху экрана, тёмная тема — кнопкой «🌙».</p>
+  </section>`;
+  if (deferredPrompt){
+    html+=`<section class="panel"><h2>📲 Установка</h2>
+      <p class="more-p">Приложение можно установить как обычную программу — со своим значком на рабочем столе.</p>
+      <button class="abtn acc" id="installBtn">Установить приложение</button>
+    </section>`;
+  }
+  html+=`<section class="panel"><h2>ℹ️ О приложении</h2>
+    <p class="more-p">Домашняя бухгалтерия, версия ${VERSION}.</p>
+    <div class="lrow"><span class="nm">Записей расходов</span><span class="dots"></span><span class="amt">${data.expenses.length}</span></div>
+    <div class="lrow"><span class="nm">Записей доходов</span><span class="dots"></span><span class="amt">${data.incomes.length}</span></div>
+    <p class="hint" style="margin-top:.6rem">Приложение работает без интернета. Данные никуда не отправляются${n?"":" — начните с первой записи на вкладке «Расходы»"}.</p>
+  </section>`;
+  app.innerHTML=html;
+  b("#expBtn", exportData);
+  b("#impBtn", ()=>$("#importFile").click());
+  const cs=$("#curSel");
+  if (cs) cs.addEventListener("change", ()=>{ prefs.cur=cs.value; savePrefs(); toast("Валюта: "+prefs.cur); render(); });
+  b("#installBtn", async ()=>{
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice.catch(()=>{});
+    deferredPrompt=null; render();
+  });
+}
+
+/* ================= Копия: сохранение и загрузка ================= */
+function exportData(){
+  const payload={app:"home-budget", ver:1, exported:new Date().toISOString(), expenses:data.expenses, incomes:data.incomes};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="budget-backup-"+todayStr()+".json";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+  toast("Файл с копией сохранён");
+}
+$("#importFile").addEventListener("change", e=>{
+  const f=e.target.files[0];
+  e.target.value="";
+  if (!f) return;
+  const fr=new FileReader();
+  fr.onload=()=>{
+    let incoming;
+    try{
+      const raw=JSON.parse(fr.result);
+      if (!raw || (!Array.isArray(raw.expenses) && !Array.isArray(raw.incomes))) throw 0;
+      incoming=normData(raw);
+    }catch(err){ toast("Это не файл копии бухгалтерии"); return; }
+    showImportSheet(incoming);
+  };
+  fr.onerror=()=>toast("Не удалось прочитать файл");
+  fr.readAsText(f);
+});
+function showImportSheet(incoming){
+  const n=incoming.expenses.length+incoming.incomes.length;
+  const bg=document.createElement("div");
+  bg.className="sheet-bg";
+  bg.innerHTML=`<div class="sheet" role="dialog" aria-label="Загрузка копии">
+    <h3>Загрузка копии</h3>
+    <p class="sub">В файле ${n} записей. Как поступить?</p>
+    <button class="abtn acc" id="mergeBtn">Дополнить — добавить записи, которых здесь нет</button>
+    <button class="abtn danger" id="replaceBtn">Заменить всё — стереть текущие записи и взять данные из файла</button>
+    <button class="abtn" id="closeSheet">Отмена</button>
+  </div>`;
+  document.body.appendChild(bg);
+  const close=()=>bg.remove();
+  bg.addEventListener("click", ev=>{ if(ev.target===bg) close(); });
+  bg.querySelector("#closeSheet").addEventListener("click", close);
+  bg.querySelector("#mergeBtn").addEventListener("click", ()=>{
+    const ids=new Set([...data.expenses,...data.incomes].map(r=>r.id));
+    let added=0;
+    incoming.expenses.forEach(r=>{ if(!ids.has(r.id)){ data.expenses.push(r); added++; } });
+    incoming.incomes.forEach(r=>{ if(!ids.has(r.id)){ data.incomes.push(r); added++; } });
+    save(); close(); render();
+    toast(added ? "Добавлено записей: "+added : "Новых записей в файле нет");
+  });
+  bg.querySelector("#replaceBtn").addEventListener("click", ()=>{
+    if (!confirm("Точно заменить все записи данными из файла?")) return;
+    data=incoming; save(); close(); render();
+    toast("Данные заменены из копии");
+  });
+}
+
+/* ================= Шапка: масштаб, тема, сеть ================= */
+function applyPrefs(){
+  document.documentElement.style.setProperty("--scale", prefs.scale);
+  document.documentElement.setAttribute("data-theme", prefs.theme);
+  $("#themeBtn").textContent = prefs.theme==="dark" ? "☀️" : "🌙";
+}
+b("#fontMinus", ()=>{ prefs.scale=Math.max(.85, Math.round((prefs.scale-.1)*100)/100); savePrefs(); applyPrefs(); toast("Размер текста: "+Math.round(prefs.scale*100)+"%"); });
+b("#fontPlus",  ()=>{ prefs.scale=Math.min(1.8, Math.round((prefs.scale+.1)*100)/100); savePrefs(); applyPrefs(); toast("Размер текста: "+Math.round(prefs.scale*100)+"%"); });
+b("#themeBtn",  ()=>{ prefs.theme=prefs.theme==="dark"?"light":"dark"; savePrefs(); applyPrefs(); });
+b("#homeBtn",   ()=>{ ui={tab:"exp", month:monthKey(todayStr()), editExp:null, editInc:null, report:null, scan:null, prefill:null}; render(); });
+b("#fab",       ()=>{ if(ui.tab==="inc") ui.editInc=""; else ui.editExp=""; render(); });
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click", ()=>{
+  ui.tab=t.dataset.tab; ui.editExp=null; ui.editInc=null; ui.report=null; ui.scan=null; render();
+}));
+
+function netUpdate(){
+  const on=navigator.onLine;
+  const nd=$("#netDot");
+  nd.classList.toggle("on", on);
+  nd.classList.toggle("off", !on);
+  $("#netTxt").textContent = on ? "в сети" : "офлайн";
+}
+window.addEventListener("online",  netUpdate);
+window.addEventListener("offline", netUpdate);
+
+window.addEventListener("beforeinstallprompt", e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  if (ui.tab==="more" && ui.editExp===null && ui.editInc===null) render();
+});
+
+/* ================= Запуск ================= */
+applyPrefs();
+netUpdate();
+render();
+if (!Store.ok) toast("Внимание: браузер не сохраняет данные, записи пропадут после закрытия");
+
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+  let reloaded=false;
+  navigator.serviceWorker.addEventListener("controllerchange", ()=>{
+    if (reloaded) return; reloaded=true;
+    location.reload();
+  });
+}
+</script>
+</body>
+</html>
