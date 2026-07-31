@@ -184,6 +184,13 @@ main{max-width:46rem; margin:0 auto; padding:1rem .9rem 9.5rem;}
 .sheet .abtn{width:100%; margin-bottom:.6rem;}
 .more-p{margin-bottom:.7rem; font-size:1rem;}
 .scan-video{width:100%; max-height:60vh; object-fit:cover; background:#000; border:2px solid var(--ink); border-radius:var(--radius); display:block;}
+button.mtitle{background:none; border:none; cursor:pointer; border-radius:10px;}
+.mtitle .caret{font-size:.7em; color:var(--muted);}
+.mgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; margin:0 0 .8rem;}
+.mgrid .cat{min-height:3.2rem; padding:.45rem .3rem;}
+#ncIcons{grid-template-columns:repeat(auto-fill,minmax(3.4rem,1fr));}
+.icat{min-height:3.1rem; padding:.35rem .2rem;}
+.catx{flex:none; min-height:2.7rem; min-width:2.7rem; border-radius:10px; border:2px solid var(--danger); color:var(--danger); background:var(--card); font-weight:800; cursor:pointer;}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important; animation:none!important;} }
 
 /* ---------- Печать отчёта (сохранение в PDF) ---------- */
@@ -259,7 +266,9 @@ const INC_SRC = [
 ];
 const PALETTE = ["#2E7D5B","#B0512F","#8E2043","#3B6FB5","#B08A1C","#6C4FA3","#4E7A8A","#A24E7B","#5B7A2E","#7A6A55"];
 const CURRENCIES = ["₸","₽","$","€"];
-const VERSION = "1.2";
+const MAX_CUSTOM = 10;
+const CAT_ICONS = ["🛍️","🍔","☕","🍕","🍰","🍺","🏥","💇","💅","🏋️","⚽","🎮","🎬","🎵","📚","💻","✈️","🚂","🚕","⛽","🧾","🏦","💳","🐕","🐈","🌸","🪴","🔨","🧵","🎨","📮","🎄"];
+const VERSION = "1.3";
 const PERIODS = [
   {id:"week",   ic:"🗓", nm:"Неделя"},
   {id:"month",  ic:"📅", nm:"Месяц"},
@@ -269,7 +278,8 @@ const PERIODS = [
   {id:"all",    ic:"♾️", nm:"Весь период"}
 ];
 
-function catById(id){ return CATS.find(c=>c.id===id) || CATS[CATS.length-1]; }
+function allCats(){ return CATS.concat((typeof data!=="undefined" && data && data.cats) ? data.cats : []); }
+function catById(id){ return allCats().find(c=>c.id===id) || CATS[CATS.length-1]; }
 function srcById(id){ return INC_SRC.find(c=>c.id===id) || INC_SRC[INC_SRC.length-1]; }
 
 /* ================= Хранилище (localStorage + запасной вариант в памяти) ================= */
@@ -282,7 +292,7 @@ const Store = {
 const KEY  = "budget.data.v1";
 const PREF = "budget.prefs.v1";
 
-function normRec(r, kind){
+function normRec(r, kind, valid){
   if (!r || typeof r!=="object") return null;
   const sum = Number(r.sum);
   if (!isFinite(sum) || sum<=0) return null;
@@ -290,22 +300,39 @@ function normRec(r, kind){
   const id = (typeof r.id==="string" && r.id) ? r.id : genId();
   const note = (typeof r.note==="string") ? r.note.slice(0,200) : "";
   if (kind==="exp"){
-    const cat = CATS.some(c=>c.id===r.cat) ? r.cat : "other";
+    const cat = valid.has(r.cat) ? r.cat : "other";
     return {id, date, cat, sum, note};
   }
   const src = INC_SRC.some(c=>c.id===r.src) ? r.src : "iother";
   return {id, date, src, sum, note};
 }
+function normCatDef(c){
+  if (!c || typeof c!=="object") return null;
+  const id = (typeof c.id==="string" && c.id && !CATS.some(b=>b.id===c.id)) ? c.id.slice(0,24) : null;
+  const nm = (typeof c.nm==="string") ? c.nm.trim().slice(0,24) : "";
+  const ic = (typeof c.ic==="string" && c.ic) ? [...c.ic].slice(0,2).join("") : "📦";
+  if (!id || !nm) return null;
+  return {id, ic, nm};
+}
 function normData(obj){
-  const d = {expenses:[], incomes:[]};
-  if (obj && Array.isArray(obj.expenses)) d.expenses = obj.expenses.map(r=>normRec(r,"exp")).filter(Boolean);
-  if (obj && Array.isArray(obj.incomes))  d.incomes  = obj.incomes.map(r=>normRec(r,"inc")).filter(Boolean);
+  const d = {expenses:[], incomes:[], cats:[]};
+  if (obj && Array.isArray(obj.cats)){
+    obj.cats.forEach(c=>{
+      const n=normCatDef(c);
+      if (n && !d.cats.some(x=>x.id===n.id) && d.cats.length<MAX_CUSTOM) d.cats.push(n);
+    });
+  }
+  const valid = new Set(CATS.map(c=>c.id));
+  d.cats.forEach(c=>valid.add(c.id));
+  if (typeof data!=="undefined" && data && data.cats) data.cats.forEach(c=>valid.add(c.id));
+  if (obj && Array.isArray(obj.expenses)) d.expenses = obj.expenses.map(r=>normRec(r,"exp",valid)).filter(Boolean);
+  if (obj && Array.isArray(obj.incomes))  d.incomes  = obj.incomes.map(r=>normRec(r,"inc",valid)).filter(Boolean);
   return d;
 }
 function loadData(){
   const raw = Store.get(KEY);
-  if (!raw) return {expenses:[], incomes:[]};
-  try{ return normData(JSON.parse(raw)); }catch(e){ return {expenses:[], incomes:[]}; }
+  if (!raw) return {expenses:[], incomes:[], cats:[]};
+  try{ return normData(JSON.parse(raw)); }catch(e){ return {expenses:[], incomes:[], cats:[]}; }
 }
 let data = loadData();
 function save(){ Store.set(KEY, JSON.stringify(data)); }
@@ -402,13 +429,43 @@ function render(){
 function mnavHtml(){
   return `<div class="mnav">
     <button class="mbtn" id="mPrev" aria-label="Предыдущий месяц">‹</button>
-    <div class="mtitle" id="mTitle">${esc(monthLabel(ui.month))}</div>
+    <button class="mtitle" id="mTitle" aria-label="Выбрать месяц и год">${esc(monthLabel(ui.month))} <span class="caret">▾</span></button>
     <button class="mbtn" id="mNext" aria-label="Следующий месяц">›</button>
   </div>`;
 }
 function bindMnav(){
   b("#mPrev", ()=>{ ui.month=shiftMonth(ui.month,-1); render(); });
   b("#mNext", ()=>{ ui.month=shiftMonth(ui.month, 1); render(); });
+  b("#mTitle", showMonthSheet);
+}
+function showMonthSheet(){
+  let year=+ui.month.slice(0,4);
+  const bg=document.createElement("div");
+  bg.className="sheet-bg";
+  const monthName=i=>cap(new Date(2000,i,1).toLocaleDateString("ru-RU",{month:"long"}));
+  const draw=()=>{
+    bg.innerHTML=`<div class="sheet" role="dialog" aria-label="Выбор месяца и года">
+      <div class="mnav" style="margin:0 0 .5rem">
+        <button class="mbtn" id="yPrev" aria-label="Предыдущий год">‹</button>
+        <div class="mtitle">${year}</div>
+        <button class="mbtn" id="yNext" aria-label="Следующий год">›</button>
+      </div>
+      <div class="mgrid">${Array.from({length:12},(_,i)=>{
+        const mk=year+"-"+String(i+1).padStart(2,"0");
+        return `<button type="button" class="cat" data-mk="${mk}" aria-pressed="${mk===ui.month}"><span class="nm">${monthName(i)}</span></button>`;
+      }).join("")}</div>
+      <button class="abtn wide" id="curMonth">К текущему месяцу</button>
+      <button class="abtn wide" id="closeSheet" style="margin-top:.5rem">Отмена</button>
+    </div>`;
+    bg.querySelector("#yPrev").addEventListener("click", ()=>{ year--; draw(); });
+    bg.querySelector("#yNext").addEventListener("click", ()=>{ year++; draw(); });
+    bg.querySelector("#curMonth").addEventListener("click", ()=>{ ui.month=monthKey(todayStr()); goBack(); });
+    bg.querySelector("#closeSheet").addEventListener("click", ()=>goBack());
+    bg.querySelectorAll("[data-mk]").forEach(el=>el.addEventListener("click", ()=>{ ui.month=el.dataset.mk; goBack(); }));
+  };
+  draw();
+  bg.addEventListener("click", ev=>{ if(ev.target===bg) goBack(); });
+  openSheet(bg);
 }
 
 /* ---------- Экран «Расходы» ---------- */
@@ -455,8 +512,8 @@ function renderExpenses(app){
   }
   app.innerHTML=html;
   bindMnav();
-  b("#scanBtn", ()=>{ ui.scan={}; render(); });
-  app.querySelectorAll("[data-exp]").forEach(el=>el.addEventListener("click", ()=>{ ui.editExp=el.dataset.exp; render(); }));
+  b("#scanBtn", ()=>{ ui.scan={}; pushSub(); render(); });
+  app.querySelectorAll("[data-exp]").forEach(el=>el.addEventListener("click", ()=>{ ui.editExp=el.dataset.exp; pushSub(); render(); }));
 }
 
 /* ---------- Сканирование QR с чека ---------- */
@@ -520,7 +577,7 @@ function renderScan(app){
   html+=`</div>`;
   app.innerHTML=html;
 
-  const close=()=>{ ui.scan=null; render(); };
+  const close=()=>goBack();
   b("#backBtn", close); b("#cancelBtn", close);
   b("#againBtn", ()=>{ ui.scan={}; render(); });
   b("#manualBtn", ()=>{ ui.scan=null; ui.editExp=""; render(); });
@@ -589,7 +646,7 @@ function renderExpForm(app){
       <input id="fSum" class="sum" inputmode="decimal" autocomplete="off" placeholder="0" value="${sumVal}">
     </div>
     <div class="field"><label>Категория</label>
-      <div class="cats" id="fCats">${CATS.map(c=>`<button type="button" class="cat" data-cat="${c.id}" aria-pressed="${c.id===selCat}"><span class="ic">${c.ic}</span><span class="nm">${esc(c.nm)}</span></button>`).join("")}</div>
+      <div class="cats" id="fCats">${allCats().map(c=>`<button type="button" class="cat" data-cat="${c.id}" aria-pressed="${c.id===selCat}"><span class="ic">${c.ic}</span><span class="nm">${esc(c.nm)}</span></button>`).join("")}</div>
     </div>
     <div class="field"><label for="fDate">Дата</label>
       <input id="fDate" type="date" value="${dateVal}">
@@ -605,7 +662,7 @@ function renderExpForm(app){
   </div>`;
   app.innerHTML=html;
 
-  const close=()=>{ ui.editExp=null; render(); };
+  const close=()=>goBack();
   b("#backBtn", close); b("#cancelBtn", close);
   app.querySelectorAll("[data-cat]").forEach(el=>el.addEventListener("click", ()=>{
     selCat=el.dataset.cat;
@@ -663,7 +720,7 @@ function renderIncForm(app){
   </div>`;
   app.innerHTML=html;
 
-  const close=()=>{ ui.editInc=null; render(); };
+  const close=()=>goBack();
   b("#backBtn", close); b("#cancelBtn", close);
   app.querySelectorAll("[data-src]").forEach(el=>el.addEventListener("click", ()=>{
     selSrc=el.dataset.src;
@@ -723,7 +780,7 @@ function renderIncomes(app){
   }
   app.innerHTML=html;
   bindMnav();
-  app.querySelectorAll("[data-inc]").forEach(el=>el.addEventListener("click", ()=>{ ui.editInc=el.dataset.inc; render(); }));
+  app.querySelectorAll("[data-inc]").forEach(el=>el.addEventListener("click", ()=>{ ui.editInc=el.dataset.inc; pushSub(); render(); }));
 }
 
 /* ---------- Экран «Графики» ---------- */
@@ -822,7 +879,7 @@ function renderStats(app){
   html+=`<button class="abtn wide" id="reportBtn" style="margin:.1rem 0 .8rem">🖨 Отчёт за период (печать / PDF)</button>`;
   app.innerHTML=html;
   bindMnav();
-  b("#reportBtn", ()=>{ ui.report={type:"month", anchor:ui.month+"-15"}; render(); });
+  b("#reportBtn", ()=>{ ui.report={type:"month", anchor:ui.month+"-15"}; pushSub(); render(); });
 }
 
 /* ---------- Отчёты за период ---------- */
@@ -943,7 +1000,7 @@ function renderReport(app){
   }
   html+=`<p class="hint">Домашняя бухгалтерия, версия ${VERSION}.</p></div>`;
   app.innerHTML=html;
-  b("#backBtn", ()=>{ ui.report=null; render(); });
+  b("#backBtn", goBack);
   b("#printBtn", ()=>window.print());
   b("#rPrev", ()=>{ rp.anchor=shiftAnchor(rp.type, rp.anchor, -1); render(); });
   b("#rNext", ()=>{ rp.anchor=shiftAnchor(rp.type, rp.anchor, 1); render(); });
@@ -964,6 +1021,11 @@ function renderMore(app){
       <button class="abtn" id="impBtn">Загрузить из файла</button>
     </div>
     <p class="hint" style="margin-top:.7rem">Как перенести на другое устройство: нажмите «Сохранить копию в файл», отправьте файл себе (например, через WhatsApp или почту), откройте приложение на втором устройстве и нажмите «Загрузить из файла».</p>
+  </section>
+  <section class="panel"><h2>🏷️ Свои категории</h2>
+    <p class="more-p">Кроме встроенных, можно добавить до ${MAX_CUSTOM} собственных категорий расходов — например «Маркетплейсы» или «Кафе и рестораны».</p>
+    ${data.cats.length ? data.cats.map(c=>`<div class="lrow"><span class="ic">${c.ic}</span><span class="nm">${esc(c.nm)}</span><span class="dots"></span><button class="catx" data-delcat="${c.id}" aria-label="Удалить категорию ${esc(c.nm)}">✕</button></div>`).join("") : `<p class="hint">Своих категорий пока нет.</p>`}
+    ${data.cats.length<MAX_CUSTOM ? `<button class="abtn acc" id="addCatBtn" style="margin-top:.5rem">＋ Добавить категорию</button>` : `<p class="hint">Достигнут предел: ${MAX_CUSTOM} своих категорий.</p>`}
   </section>
   <section class="panel"><h2>⚙️ Настройки</h2>
     <div class="field"><label for="curSel">Валюта</label>
@@ -986,6 +1048,17 @@ function renderMore(app){
   app.innerHTML=html;
   b("#expBtn", exportData);
   b("#impBtn", ()=>$("#importFile").click());
+  b("#addCatBtn", showNewCatSheet);
+  app.querySelectorAll("[data-delcat]").forEach(el=>el.addEventListener("click", ()=>{
+    const id=el.dataset.delcat;
+    const c=data.cats.find(x=>x.id===id); if(!c) return;
+    const n=data.expenses.filter(r=>r.cat===id).length;
+    const q=n?`Удалить категорию «${c.nm}»? Её записи (${n}) перейдут в «Прочее».`:`Удалить категорию «${c.nm}»?`;
+    if(!confirm(q)) return;
+    data.expenses.forEach(r=>{ if(r.cat===id) r.cat="other"; });
+    data.cats=data.cats.filter(x=>x.id!==id);
+    save(); toast("Категория удалена"); render();
+  }));
   const cs=$("#curSel");
   if (cs) cs.addEventListener("change", ()=>{ prefs.cur=cs.value; savePrefs(); toast("Валюта: "+prefs.cur); render(); });
   b("#installBtn", async ()=>{
@@ -998,7 +1071,7 @@ function renderMore(app){
 
 /* ================= Копия: сохранение и загрузка ================= */
 function exportData(){
-  const payload={app:"home-budget", ver:1, exported:new Date().toISOString(), expenses:data.expenses, incomes:data.incomes};
+  const payload={app:"home-budget", ver:1, exported:new Date().toISOString(), cats:data.cats, expenses:data.expenses, incomes:data.incomes};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
@@ -1024,6 +1097,39 @@ $("#importFile").addEventListener("change", e=>{
   fr.onerror=()=>toast("Не удалось прочитать файл");
   fr.readAsText(f);
 });
+function showNewCatSheet(){
+  let ic=CAT_ICONS[0];
+  const bg=document.createElement("div");
+  bg.className="sheet-bg";
+  bg.innerHTML=`<div class="sheet" role="dialog" aria-label="Новая категория">
+    <h3>Новая категория</h3>
+    <div class="field"><label for="ncName">Название</label>
+      <input id="ncName" maxlength="24" autocomplete="off" placeholder="Например: Маркетплейсы"></div>
+    <div class="field"><label>Значок</label>
+      <div class="cats" id="ncIcons">${CAT_ICONS.map(e=>`<button type="button" class="cat icat" data-ic="${e}" aria-pressed="${e===ic}"><span class="ic">${e}</span></button>`).join("")}</div></div>
+    <div class="row-actions" style="margin-top:.4rem">
+      <button class="abtn acc" id="ncSave">Сохранить</button>
+      <button class="abtn" id="closeSheet">Отмена</button>
+    </div>
+  </div>`;
+  bg.addEventListener("click", ev=>{ if(ev.target===bg) goBack(); });
+  bg.querySelector("#closeSheet").addEventListener("click", ()=>goBack());
+  bg.querySelectorAll("[data-ic]").forEach(el=>el.addEventListener("click", ()=>{
+    ic=el.dataset.ic;
+    bg.querySelectorAll("[data-ic]").forEach(x=>x.setAttribute("aria-pressed", String(x.dataset.ic===ic)));
+  }));
+  bg.querySelector("#ncSave").addEventListener("click", ()=>{
+    const nm=bg.querySelector("#ncName").value.trim();
+    if(!nm){ toast("Введите название категории"); return; }
+    if(data.cats.length>=MAX_CUSTOM){ toast("Достигнут предел категорий"); return; }
+    if(allCats().some(c=>c.nm.toLowerCase()===nm.toLowerCase())){ toast("Такая категория уже есть"); return; }
+    data.cats.push({id:"c"+genId(), ic, nm});
+    save(); toast("Категория добавлена: "+nm);
+    goBack();
+  });
+  openSheet(bg);
+  bg.querySelector("#ncName").focus();
+}
 function showImportSheet(incoming){
   const n=incoming.expenses.length+incoming.incomes.length;
   const bg=document.createElement("div");
@@ -1035,24 +1141,37 @@ function showImportSheet(incoming){
     <button class="abtn danger" id="replaceBtn">Заменить всё — стереть текущие записи и взять данные из файла</button>
     <button class="abtn" id="closeSheet">Отмена</button>
   </div>`;
-  document.body.appendChild(bg);
-  const close=()=>bg.remove();
+  const close=()=>goBack();
   bg.addEventListener("click", ev=>{ if(ev.target===bg) close(); });
   bg.querySelector("#closeSheet").addEventListener("click", close);
+  openSheet(bg);
   bg.querySelector("#mergeBtn").addEventListener("click", ()=>{
+    incoming.cats.forEach(c=>{
+      if (!data.cats.some(x=>x.id===c.id) && data.cats.length<MAX_CUSTOM) data.cats.push(c);
+    });
     const ids=new Set([...data.expenses,...data.incomes].map(r=>r.id));
     let added=0;
     incoming.expenses.forEach(r=>{ if(!ids.has(r.id)){ data.expenses.push(r); added++; } });
     incoming.incomes.forEach(r=>{ if(!ids.has(r.id)){ data.incomes.push(r); added++; } });
-    save(); close(); render();
-    toast(added ? "Добавлено записей: "+added : "Новых записей в файле нет");
+    save(); toast(added ? "Добавлено записей: "+added : "Новых записей в файле нет");
+    goBack();
   });
   bg.querySelector("#replaceBtn").addEventListener("click", ()=>{
     if (!confirm("Точно заменить все записи данными из файла?")) return;
-    data=incoming; save(); close(); render();
-    toast("Данные заменены из копии");
+    data=incoming; save(); toast("Данные заменены из копии");
+    goBack();
   });
 }
+
+/* ================= Системная кнопка «назад» ================= */
+let subPushed=false, sheetBg=null;
+function pushSub(){ if(!subPushed){ try{ history.pushState({sub:1}, ""); subPushed=true; }catch(e){} } }
+function openSheet(el){ sheetBg=el; document.body.appendChild(el); pushSub(); }
+function closeSheetEl(){ if(sheetBg){ sheetBg.remove(); sheetBg=null; } }
+function isSubOpen(){ return !!(sheetBg || ui.scan || ui.report || ui.editExp!==null || ui.editInc!==null); }
+function doCloseSubs(){ closeSheetEl(); ui.editExp=null; ui.editInc=null; ui.scan=null; ui.report=null; render(); }
+function goBack(){ if(subPushed) history.back(); else doCloseSubs(); }
+window.addEventListener("popstate", ()=>{ subPushed=false; if(isSubOpen()) doCloseSubs(); });
 
 /* ================= Шапка: масштаб, тема, сеть ================= */
 function applyPrefs(){
@@ -1064,7 +1183,7 @@ b("#fontMinus", ()=>{ prefs.scale=Math.max(.85, Math.round((prefs.scale-.1)*100)
 b("#fontPlus",  ()=>{ prefs.scale=Math.min(1.8, Math.round((prefs.scale+.1)*100)/100); savePrefs(); applyPrefs(); toast("Размер текста: "+Math.round(prefs.scale*100)+"%"); });
 b("#themeBtn",  ()=>{ prefs.theme=prefs.theme==="dark"?"light":"dark"; savePrefs(); applyPrefs(); });
 b("#homeBtn",   ()=>{ ui={tab:"exp", month:monthKey(todayStr()), editExp:null, editInc:null, report:null, scan:null, prefill:null}; render(); });
-b("#fab",       ()=>{ if(ui.tab==="inc") ui.editInc=""; else ui.editExp=""; render(); });
+b("#fab",       ()=>{ if(ui.tab==="inc") ui.editInc=""; else ui.editExp=""; pushSub(); render(); });
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click", ()=>{
   ui.tab=t.dataset.tab; ui.editExp=null; ui.editInc=null; ui.report=null; ui.scan=null; render();
 }));
