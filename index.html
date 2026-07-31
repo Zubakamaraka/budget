@@ -268,7 +268,7 @@ const PALETTE = ["#2E7D5B","#B0512F","#8E2043","#3B6FB5","#B08A1C","#6C4FA3","#4
 const CURRENCIES = ["₸","₽","$","€"];
 const MAX_CUSTOM = 10;
 const CAT_ICONS = ["🛍️","🍔","☕","🍕","🍰","🍺","🏥","💇","💅","🏋️","⚽","🎮","🎬","🎵","📚","💻","✈️","🚂","🚕","⛽","🧾","🏦","💳","🐕","🐈","🌸","🪴","🔨","🧵","🎨","📮","🎄"];
-const VERSION = "1.3";
+const VERSION = "1.3.1";
 const PERIODS = [
   {id:"week",   ic:"🗓", nm:"Неделя"},
   {id:"month",  ic:"📅", nm:"Месяц"},
@@ -314,7 +314,7 @@ function normCatDef(c){
   if (!id || !nm) return null;
   return {id, ic, nm};
 }
-function normData(obj){
+function normData(obj, extraCats){
   const d = {expenses:[], incomes:[], cats:[]};
   if (obj && Array.isArray(obj.cats)){
     obj.cats.forEach(c=>{
@@ -324,7 +324,7 @@ function normData(obj){
   }
   const valid = new Set(CATS.map(c=>c.id));
   d.cats.forEach(c=>valid.add(c.id));
-  if (typeof data!=="undefined" && data && data.cats) data.cats.forEach(c=>valid.add(c.id));
+  (extraCats||[]).forEach(c=>valid.add(c.id));
   if (obj && Array.isArray(obj.expenses)) d.expenses = obj.expenses.map(r=>normRec(r,"exp",valid)).filter(Boolean);
   if (obj && Array.isArray(obj.incomes))  d.incomes  = obj.incomes.map(r=>normRec(r,"inc",valid)).filter(Boolean);
   return d;
@@ -332,7 +332,8 @@ function normData(obj){
 function loadData(){
   const raw = Store.get(KEY);
   if (!raw) return {expenses:[], incomes:[], cats:[]};
-  try{ return normData(JSON.parse(raw)); }catch(e){ return {expenses:[], incomes:[], cats:[]}; }
+  try{ return normData(JSON.parse(raw)); }
+  catch(e){ Store.set(KEY+".rescue."+todayStr(), raw); return {expenses:[], incomes:[], cats:[]}; }
 }
 let data = loadData();
 function save(){ Store.set(KEY, JSON.stringify(data)); }
@@ -1090,7 +1091,7 @@ $("#importFile").addEventListener("change", e=>{
     try{
       const raw=JSON.parse(fr.result);
       if (!raw || (!Array.isArray(raw.expenses) && !Array.isArray(raw.incomes))) throw 0;
-      incoming=normData(raw);
+      incoming=normData(raw, data.cats);
     }catch(err){ toast("Это не файл копии бухгалтерии"); return; }
     showImportSheet(incoming);
   };
