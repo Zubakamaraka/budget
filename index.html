@@ -1044,7 +1044,9 @@ function renderMore(app){
     <p class="more-p">Домашняя бухгалтерия, версия ${VERSION}.</p>
     <div class="lrow"><span class="nm">Записей расходов</span><span class="dots"></span><span class="amt">${data.expenses.length}</span></div>
     <div class="lrow"><span class="nm">Записей доходов</span><span class="dots"></span><span class="amt">${data.incomes.length}</span></div>
+    <div class="lrow"><span class="nm">Автор</span><span class="dots"></span><span class="amt" style="font-weight:700">Zubakamaraka, 2026</span></div>
     <p class="hint" style="margin-top:.6rem">Приложение работает без интернета. Данные никуда не отправляются${n?"":" — начните с первой записи на вкладке «Расходы»"}.</p>
+    <p class="hint">Лицензия MIT · <a href="https://github.com/Zubakamaraka/budget" style="color:var(--accent)">исходный код на GitHub</a></p>
   </section>`;
   app.innerHTML=html;
   b("#expBtn", exportData);
